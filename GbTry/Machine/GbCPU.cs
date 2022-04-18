@@ -60,6 +60,7 @@ namespace GbTry.Machine
         private bool EnableBoot;
         private int timer_internal_div = 0;
         private int timer_internal_cnt = 0;
+        private bool OAMEnable = false;
 
         public byte[] Memory = new byte[64*1024];
         public JoyPad keys = new JoyPad();
@@ -228,6 +229,21 @@ namespace GbTry.Machine
         public void SetValueIntoMemory(ushort address, byte value)
         {
             Memory[address] = value;
+            if(address == 0xff46) //OAM
+                OAM_RAM(value);
+        }
+        private void OAM_RAM(byte value)
+        { // OAM 'dma' transfer
+            if (value > 0)
+            {
+                ushort a = (ushort)(value << 8);
+                for (byte i = 0; i < 160; i++) { 
+                    byte v = GetValueFromMemory((ushort)(a + i)); 
+                    SetValueIntoMemory((ushort)(0xfe00 + i), v); 
+                } // oam mem space
+                SetValueIntoMemory(0xff46,0);
+                OAMEnable = true;
+            }
         }
 
         public void Init_Emu(ref byte [] rom)
@@ -279,6 +295,11 @@ namespace GbTry.Machine
                     Cycle = 0;
                     byte opcode = fetch();
                     Lr35902.ExecuteOP(opcode);
+                    if (OAMEnable)
+                    {
+                        Cycle += 671;
+                        OAMEnable = false;
+                    }
                 }
                 ppu.Render();
                 timer_step();
@@ -385,7 +406,7 @@ namespace GbTry.Machine
 
 
             var value = GetValueFromMemory(INTF);
-            for (int i = 0; i < 4; i++)
+            //for (int i = 0; i < 4; i++)
             {
                 byte trig = (byte)(GetValueFromMemory(INTF) & GetValueFromMemory(INTE));
                 if (trig != 0)
