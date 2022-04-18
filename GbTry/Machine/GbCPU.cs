@@ -69,7 +69,6 @@ namespace GbTry.Machine
         {
             Lr35902.GetGbCPU(this);
             ppu.GetGbCPU(this);
-
             button_key_map.Add(Key.Z, 0x04); // a
             button_key_map.Add(Key.X, 0x08); // b
             button_key_map.Add(Key.Space, 0x01); // select
@@ -87,28 +86,52 @@ namespace GbTry.Machine
                 switch(index)
                 {
                     case 0x01:
-                        keys.select = 0x01;
+                        if(data == 1)
+                            keys.select = 0x01;
+                        else
+                            keys.select = 0x00;
                         break;
                     case 0x02:
-                        keys.start = 0x02;
+                        if (data == 1)
+                            keys.start = 0x01;
+                        else
+                            keys.start = 0x00;
                         break;
                     case 0x04:
-                        keys.a = 0x04;
+                        if (data == 1)
+                            keys.a = 0x01;
+                        else
+                            keys.a = 0x00;
                         break;
                     case 0x08:
-                        keys.b = 0x08;
+                        if (data == 1)
+                            keys.b = 0x01;
+                        else
+                            keys.b = 0x00;
                         break;
                     case 0x10:
-                        keys.left = 0x10;
+                        if (data == 1)
+                            keys.left = 0x01;
+                        else
+                            keys.left = 0x00;
                         break;
                     case 0x20:
-                        keys.right = 0x20;
+                        if (data == 1)
+                            keys.right = 0x01;
+                        else
+                            keys.right = 0x00;
                         break;
                     case 0x40:
-                        keys.down = 0x40;
+                        if (data == 1)
+                            keys.down = 0x01;
+                        else
+                            keys.down = 0x00;
                         break;
                     case 0x80:
-                        keys.up = 0x80;
+                        if (data == 1)
+                            keys.up = 0x01;
+                        else
+                            keys.up = 0x00;
                         break;
                 }
             }
@@ -291,7 +314,11 @@ namespace GbTry.Machine
             SetValueIntoMemory(0xFF48, 0xff);
             SetValueIntoMemory(0xFF49, 0xff);                
             Halt = false;
+            Running = true;
+            bIRQ = true;
             Cycle = 0;
+            timer_internal_div = 0;
+            timer_internal_cnt = 0;
             ppu.init(ref g_data);
         }
         private  void timer_step()
@@ -345,50 +372,54 @@ namespace GbTry.Machine
 
         private void Interrupts()
         {
-            /*byte joydata = (byte)((~GetValueFromMemory(IO_P1)) & 0xf0);
+            byte joydata = (byte)((~GetValueFromMemory(IO_P1)) & 0xf0);
             byte val = 0;
-            if (((joydata >> 4) & 0x2) != 0) val = (byte)((0x20) | (keys.a << 0) | (keys.b << 1) | (keys.select << 2) | (keys.start << 3));
-            if (((joydata >> 4) & 0x1) != 0) val = (byte)((0x10) | (keys.right << 0) | (keys.left << 1) | (keys.up << 2) | (keys.down << 3));
+            if (((joydata >> 4) & 0x2) !=0) val = (byte)((0x20) | (keys.a << 0) | (keys.b << 1) | (keys.select << 2) | (keys.start << 3));
+            if (((joydata >> 4) & 0x1) !=0) val = (byte)((0x10) | (keys.right << 0) | (keys.left << 1) | (keys.up << 2) | (keys.down << 3));
             if (val != 0)
             {   
-                var value = GetValueFromMemory(INTF); 
-                SetValueIntoMemory(INTF, (byte)(value | 0x10));
+                var value1 = GetValueFromMemory(INTF); 
+                SetValueIntoMemory(INTF, (byte)(value1 | 0x10));
             }
-            SetValueIntoMemory(IO_P1, (byte)~(val));*/
+            SetValueIntoMemory(IO_P1, (byte)~(val));
 
 
             var value = GetValueFromMemory(INTF);
-            byte trig = (byte)(GetValueFromMemory(INTF) & GetValueFromMemory(INTE));
-            if (trig != 0)
+            for (int i = 0; i < 4; i++)
             {
-                Halt = false;
-                if (!bIRQ)
-                    return;
-                if ((trig & 0x1) == 0x01)  // vblank
-                {   
-                    bIRQ = false;
-                    SetValueIntoMemory(INTF, (byte)(value & 0xFE));
-                    Lr35902.O_RST(0x40,"RST"); 
-                }
-                else
-                if ((trig & 0x2) == 0x02)
-                { // lcdstat
-                    bIRQ = false;
-                    SetValueIntoMemory(INTF, (byte)(value & 0xFD));
-                    Lr35902.O_RST(0x48, "RST"); 
-                }
-                else  
-                if ((trig & 0x4) == 0x04)
-                { // timer
-                    bIRQ = false;
-                    SetValueIntoMemory(INTF, (byte)(value & 0xFB));
-                    Lr35902.O_RST(0x50, "RST");
-                } else
-                if ((trig & 0x10) == 0x10)
-                { //  joypad
-                    bIRQ = false;
-                    SetValueIntoMemory(INTF, (byte)(value & 0xEF));
-                    Lr35902.O_RST(0x60, "RST"); 
+                byte trig = (byte)(GetValueFromMemory(INTF) & GetValueFromMemory(INTE));
+                if (trig != 0)
+                {
+                    Halt = false;
+                    if (!bIRQ)
+                        return;
+                    if ((trig & 0x1) == 0x01)  // vblank
+                    {
+                        bIRQ = false;
+                        SetValueIntoMemory(INTF, (byte)(value & 0xFE));
+                        Lr35902.O_RST(0x40, "RST");
+                    }
+                    else
+                    if ((trig & 0x2) == 0x02)
+                    { // lcdstat
+                        bIRQ = false;
+                        SetValueIntoMemory(INTF, (byte)(value & 0xFD));
+                        Lr35902.O_RST(0x48, "RST");
+                    }
+                    else
+                    if ((trig & 0x4) == 0x04)
+                    { // timer
+                        bIRQ = false;
+                        SetValueIntoMemory(INTF, (byte)(value & 0xFB));
+                        Lr35902.O_RST(0x50, "RST");
+                    }
+                    else
+                    if ((trig & 0x10) == 0x10)
+                    { //  joypad
+                        bIRQ = false;
+                        SetValueIntoMemory(INTF, (byte)(value & 0xEF));
+                        Lr35902.O_RST(0x60, "RST");
+                    }
                 }
             }
         }

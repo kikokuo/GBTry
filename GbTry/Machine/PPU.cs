@@ -23,17 +23,16 @@ namespace GbTry.Machine
         private ushort BGRDPAL = 0xFF47;
         private byte [] BGprio  = new byte[160];
         //public byte [,] Pix= new byte[2,69120]; // screen
-        public byte Buffer = 0;
         private bool Blink = false;
-        private UInt32[] data;
+        private UInt32[] data = null;
 
         public void init(ref UInt32[] g_data)
         {
-            Buffer = 0;
             Blink = false;
             PPU_clk = 0;
-            Array.Clear(BGprio,0,160);
+            //Array.Clear(BGprio,0,160);
             //Array.Clear(Pix, 0, 2*69120);
+            if(data == null)
             data = g_data;
         }
 
@@ -58,7 +57,6 @@ namespace GbTry.Machine
            this.gbCPU = gbCPU;
         }
         private void blit() {
-           Buffer ^= 1;
            Blink = true;
         }
 
@@ -99,7 +97,7 @@ namespace GbTry.Machine
             {
                 PPU_clk -= 456;
                 var ly = GetValue(LY);
-                SetValue(LY, (byte)((ly + 1) % 154));
+                SetValue(LY, (byte)((ly+1) % 154));
                 Check_Interrupt_lyc();
                 if (ly == 144) { 
                     PPU_Change_Mode(1); 
@@ -209,7 +207,7 @@ namespace GbTry.Machine
                 ushort wintiley = (ushort)((winy >> 3) & 31);
                 for (byte x = 0; x < 160; x++)
                 {
-                    uint bgx = (uint)((int)GetValue(SCX) + (int)x);
+                    uint bgx = (uint)((int)GetValue(SCX) + x);
                     int winx = -((int)GetValue(WINX) - 7) + x;
                     ushort tilemapbase = 0;
                     ushort tilex = 0, tiley = 0, pixelx = 0, pixely = 0;
@@ -221,12 +219,12 @@ namespace GbTry.Machine
                     { // draw window
                         byte gpu_win_map = (byte)((Lcdc >> 6) & 0x1);//9800-9bff, 9c00-9fff
                         tilemapbase = (ushort)((gpu_win_map == 0x01) ? 0x9c00 : 0x9800);
-                        tiley = wintiley; tilex = (ushort)(winx >> 3); pixely = (ushort)(winy & 0x7); pixelx = (byte)(winx & 0x7);
+                        tiley = wintiley; tilex = (ushort)((winx >> 3) & 31); pixely = (ushort)(winy & 0x07); pixelx = (byte)(winx & 0x7);
                     }
                     else if (gpu_drawbg == 0x01)
                     { // draw bg
                         tilemapbase = (ushort)((gpu_bgmap== 0x01) ? 0x9c00 : 0x9800);
-                        tiley = bgtiley; tilex = (ushort)((bgx >> 3) & 31); pixely = (ushort)(bgy&0x7); pixelx = (byte)(bgx & 0x7);
+                        tiley = bgtiley; tilex = (ushort)((bgx >> 3) & 31); pixely = (ushort)(bgy&0x07); pixelx = (byte)(bgx & 0x7);
                     }
 
                     ushort value = (ushort)(tilemapbase + tiley * 32 + tilex);
@@ -246,7 +244,7 @@ namespace GbTry.Machine
                     byte data1 = gbCPU.GetValueFromMemory((ushort)(a0+1));
                     byte color0_idx = (byte)((data0 >> (7 - pixelx)) & 0x1);
                     byte color1_idx = (byte)((data1 >> (7 - pixelx)) & 0x1);
-                    byte color_idx = (byte)(color0_idx  + color1_idx* 2);
+                    byte color_idx = (byte)(color0_idx  | color1_idx* 2);
                     byte r = 0, g = 0, b = 0;
                     var cor_reg = GetValue(BGRDPAL);
                     byte color = (byte)((cor_reg >> (color_idx * 2)) & 0x3);
@@ -310,7 +308,7 @@ namespace GbTry.Machine
                         byte pal = (usepal1 == 0x01) ? GetValue(OBJPAL1) : GetValue(OBJPAL0);
                         byte color0_idx = (byte)((data0 >> (off)) & 0x1);
                         byte color1_idx = (byte)((data1 >> (off)) & 0x1);
-                        byte color_idx = (byte)(color0_idx + color1_idx * 2);
+                        byte color_idx = (byte)(color0_idx  |color1_idx * 2);
                         if (color_idx == 0) continue;
                         byte r = 0 , g= 0, b  = 0;
                         byte color = (byte)((pal >> (color_idx * 2)) & 0x3);

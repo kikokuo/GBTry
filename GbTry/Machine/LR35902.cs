@@ -507,7 +507,7 @@ namespace GbTry.Machine
             {
                 case 0xc2:
                     { 
-                        var value = (ushort)(gbCPU.fetch()| (gbCPU.fetch()<<8));
+                        var value = (ushort)(gbCPU.fetch() | (gbCPU.fetch() << 8));
                         if(gbCPU.GetFlagZ() == 0x00)
                         {
                             gbCPU.PC.word = value;
