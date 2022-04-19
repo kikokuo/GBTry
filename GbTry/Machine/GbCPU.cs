@@ -61,8 +61,13 @@ namespace GbTry.Machine
         private int timer_internal_div = 0;
         private int timer_internal_cnt = 0;
         private bool OAMEnable = false;
+        private byte mbc_mode = 0;
+        private byte ram_bank_no = 0;
+        private byte rom_bank_no = 0;
+        private ushort ram_offs = 0x0000;
+        private uint rom_offs = 0x4000;
 
-        public byte[] Memory = new byte[64*1024];
+        public byte[] Memory = new byte[1024*1024];
         public JoyPad keys = new JoyPad();
         // 預設按鍵對映
         public Dictionary<Key, int> button_key_map = new Dictionary<Key, int>();
@@ -223,11 +228,68 @@ namespace GbTry.Machine
 
         public byte GetValueFromMemory(ushort address)
         {
+            switch (address & 0xf000)
+            {
+                case 0x4000:
+                case 0x5000:
+                case 0x6000:
+                case 0x7000: // selectable ROM bank 1 : 0x4000 - 0x7fff
+                    return Memory[(uint)(address & 0x3fff) + rom_offs];
+            }
             return Memory[address];
         }
 
         public void SetValueIntoMemory(ushort address, byte value)
         {
+            var val = Memory[0x0147];
+            switch (address & 0xf000)
+            {
+                case 0x0000:
+                case 0x1000: // external ram switch
+                    /*switch (val) { case 2: 
+                                   case 3: 
+                                   ram_on = ((value & 0x0f) == 0x0a) ? 1 : 0; 
+                                    break; 
+                                 }*/
+                    break;
+                case 0x2000:
+                case 0x3000: // rom bank select
+                    switch (val)
+                    {
+                        case 1:
+                        case 2:
+                        case 3:
+                            var  val1 = val & 0x1f;
+                            val1 = (byte)(val1 > 0 ? val : 1);
+                            rom_bank_no = (byte)((rom_bank_no & 0x60) + val1);
+                            rom_offs = (uint)(rom_bank_no) * 0x00004000;
+                            break;
+                    }
+                    break;
+                case 0x4000:
+                case 0x5000: // ram select
+                    switch (val)
+                    {
+                        case 1:
+                        case 2:
+                        case 3:
+                             if (mbc_mode != 0) { ram_bank_no = (byte)(val & 3); ram_offs = (ushort)(ram_bank_no * 0x2000); } // ram mode
+                            else
+                            {
+                                rom_bank_no = (byte)(rom_bank_no & 0x1f + ((val & 3) << 5));
+                                rom_offs = (uint)(rom_bank_no) * 0x00004000;
+                            } // rom mode
+                            break;
+                    }
+                    break;
+                case 0x6000:
+                case 0x7000: // mode switch
+                    switch (val) {
+                                   case 2:
+                                   case 3: mbc_mode = (byte)(val & 1); break; }
+                    break;
+            }
+
             Memory[address] = value;
             if(address == 0xff46) //OAM
                 OAM_RAM(value);
@@ -313,10 +375,10 @@ namespace GbTry.Machine
         public void PowerOn(ref UInt32[] g_data)
         {
             PC.word = 0x0100;
-            AF.word = 0x1180;
-            BC.word = 0x0000;
-            DE.word = 0xFF56;
-            HL.word = 0x000D;
+            AF.word = 0x01b0;
+            BC.word = 0x0013;
+            DE.word = 0x00D8;
+            HL.word = 0x014D;
             SP.word = 0xFFFE;
             SetValueIntoMemory(0xFF50, 0x01); //boot
             if (EnableBoot) { 
@@ -406,7 +468,7 @@ namespace GbTry.Machine
 
 
             var value = GetValueFromMemory(INTF);
-            //for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 4; i++)
             {
                 byte trig = (byte)(GetValueFromMemory(INTF) & GetValueFromMemory(INTE));
                 if (trig != 0)

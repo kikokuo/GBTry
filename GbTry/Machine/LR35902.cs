@@ -592,9 +592,8 @@ namespace GbTry.Machine
                         opname += "HL";
                     break;
                 case 0xf1:
-                    var word = gbCPU.POP();
-                    gbCPU.AF.lowbyte = (byte)(word >> 0x08);
-                    gbCPU.AF.highbyte = (byte)(word & 0x00F0);
+                    gbCPU.AF.word = gbCPU.POP();
+                    gbCPU.AF.highbyte &= 0xF0;
                     if (gbCPU.debugflag)
                         opname += "AF";
                     break;
@@ -662,7 +661,7 @@ namespace GbTry.Machine
             switch (op)
             {
                 case 0x10:
-                    gbCPU.fetch();
+                    gbCPU.PC.word++;
                     opname += op.ToString("X");
                     break;
                 case 0xcb:
@@ -965,12 +964,12 @@ namespace GbTry.Machine
         }
         private byte CalcINC(byte retvalue)
         {
-            retvalue++;
+            byte val = (byte)(retvalue + 1);
             gbCPU.SetFlagN(false);
-            gbCPU.SetFlagZ(retvalue == 0x00);
-            gbCPU.SetFlagH((retvalue&0x0F) == 0x00); 
+            gbCPU.SetFlagZ(val == 0x00);
+            gbCPU.SetFlagH((retvalue&0x0F) + 1 > 0x0f); 
             gbCPU.IncCycle(4);
-            return retvalue;
+            return val;
         }
 
         public string O_DEC(byte op, string opname)
@@ -1050,12 +1049,12 @@ namespace GbTry.Machine
         }
         private byte CalcDEC(byte retvalue)
         {
-            retvalue--;
+            byte val = (byte)(retvalue - 1);
             gbCPU.SetFlagN(true);
-            gbCPU.SetFlagZ(retvalue == 0x00);
-            gbCPU.SetFlagH((retvalue & 0x0F) == 0x0F);
+            gbCPU.SetFlagZ(val == 0x00);
+            gbCPU.SetFlagH((retvalue & 0x0F) == 0);
             gbCPU.IncCycle(4);
-            return retvalue;
+            return val;
         }
 
         public string O_LD_d(byte op, string opname)
@@ -1141,6 +1140,7 @@ namespace GbTry.Machine
                         var Carry = (byte)((gbCPU.AF.lowbyte >> 0x07) & 0x01);
                         gbCPU.AF.lowbyte = (byte)(Carry | (gbCPU.AF.lowbyte << 0x01));
                         gbCPU.SetFlagC(Carry == 0x01);
+                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                         break;
                     }
                 case 0x17:
@@ -1148,10 +1148,10 @@ namespace GbTry.Machine
                         var Carry = gbCPU.GetFlagC();
                         gbCPU.SetFlagC((byte)((gbCPU.AF.lowbyte >> 0x07) & 0x01) == 0x01); 
                         gbCPU.AF.lowbyte = (byte)(Carry | (gbCPU.AF.lowbyte << 0x01));
+                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                         break;
                     }
             }
-            gbCPU.SetFlagZ(false);
             gbCPU.SetFlagH(false);
             gbCPU.SetFlagN(false);
             gbCPU.IncCycle(4);
@@ -1167,18 +1167,18 @@ namespace GbTry.Machine
                         var Carry = (byte)(gbCPU.AF.lowbyte & 0x01);
                         gbCPU.AF.lowbyte = (byte)(Carry << 0x07 | (gbCPU.AF.lowbyte >> 0x01));
                         gbCPU.SetFlagC(Carry == 0x01);
+                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                     }
                     break;
                 case 0x1f:
                     {
                         var Carry = gbCPU.GetFlagC();
                         gbCPU.SetFlagC((byte)(gbCPU.AF.lowbyte & 0x01) == 0x01); 
-                        gbCPU.AF.lowbyte = (byte)(Carry << 0x07 | (gbCPU.AF.lowbyte >> 0x01));
+                        gbCPU.AF.lowbyte = (byte)(Carry << 0x07 | (gbCPU.AF.lowbyte >> 0x01)); 
+                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                     }
                     break;
             }
-
-            gbCPU.SetFlagZ(false);
             gbCPU.SetFlagH(false);
             gbCPU.SetFlagN(false);
             gbCPU.IncCycle(4);
@@ -1202,13 +1202,8 @@ namespace GbTry.Machine
                     {
                         sbyte data = (sbyte)gbCPU.fetch();
                         if(gbCPU.GetFlagZ() == 0)
-                        {
                             gbCPU.PC.word = (ushort)(gbCPU.PC.word + data);
-                            gbCPU.IncCycle(12);
-                        }
-                        else{
-                            gbCPU.IncCycle(8);
-                        } 
+                        gbCPU.IncCycle(12);
                         if (gbCPU.debugflag)
                                 opname += " $" + data.ToString("X") + "h";
                         break;
@@ -1217,14 +1212,8 @@ namespace GbTry.Machine
                     {
                         sbyte data = (sbyte)gbCPU.fetch();
                         if (gbCPU.GetFlagZ() == 1)
-                        {
                             gbCPU.PC.word = (ushort)(gbCPU.PC.word + data); ;
-                            gbCPU.IncCycle(12);
-                        }
-                        else
-                        {
-                            gbCPU.IncCycle(8);
-                        }
+                        gbCPU.IncCycle(12);
                         if (gbCPU.debugflag)
                             opname += " $" + data.ToString("X") + "h";
                         break;
@@ -1233,14 +1222,8 @@ namespace GbTry.Machine
                     {
                         sbyte data = (sbyte)gbCPU.fetch();
                         if (gbCPU.GetFlagC() == 0)
-                        {
                             gbCPU.PC.word = (ushort)(gbCPU.PC.word + data); ;
-                            gbCPU.IncCycle(12);
-                        }
-                        else
-                        {
-                            gbCPU.IncCycle(8);
-                        } 
+                         gbCPU.IncCycle(12);
                         if (gbCPU.debugflag)
                                 opname += " $" + data.ToString("X") + "h";
                         break;
@@ -1249,14 +1232,8 @@ namespace GbTry.Machine
                     {
                         sbyte data = (sbyte)gbCPU.fetch();
                         if (gbCPU.GetFlagC() == 1)
-                        {
                             gbCPU.PC.word = (ushort)(gbCPU.PC.word + data); ;
-                            gbCPU.IncCycle(12);
-                        }
-                        else
-                        {
-                            gbCPU.IncCycle(8);
-                        } 
+                        gbCPU.IncCycle(12);
                         if (gbCPU.debugflag)
                                 opname += " $" + data.ToString("X") + "h";
                         break;
