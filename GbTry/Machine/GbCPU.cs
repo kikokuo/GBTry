@@ -242,54 +242,60 @@ namespace GbTry.Machine
         public void SetValueIntoMemory(ushort address, byte value)
         {
             var val = Memory[0x0147];
-            switch (address & 0xf000)
+            if (val != 0)
             {
-                case 0x0000:
-                case 0x1000: // external ram switch
-                    /*switch (val) { case 2: 
-                                   case 3: 
-                                   ram_on = ((value & 0x0f) == 0x0a) ? 1 : 0; 
-                                    break; 
-                                 }*/
-                    break;
-                case 0x2000:
-                case 0x3000: // rom bank select
-                    switch (val)
-                    {
-                        case 1:
-                        case 2:
-                        case 3:
-                            var  val1 = val & 0x1f;
-                            val1 = (byte)(val1 > 0 ? val : 1);
-                            rom_bank_no = (byte)((rom_bank_no & 0x60) + val1);
-                            rom_offs = (uint)(rom_bank_no) * 0x00004000;
-                            break;
-                    }
-                    break;
-                case 0x4000:
-                case 0x5000: // ram select
-                    switch (val)
-                    {
-                        case 1:
-                        case 2:
-                        case 3:
-                             if (mbc_mode != 0) { ram_bank_no = (byte)(val & 3); ram_offs = (ushort)(ram_bank_no * 0x2000); } // ram mode
-                            else
-                            {
-                                rom_bank_no = (byte)(rom_bank_no & 0x1f + ((val & 3) << 5));
+                switch (address & 0xf000)
+                {
+                    case 0x0000:
+                    case 0x1000: // external ram switch
+                        /*switch (val) { case 2: 
+                                       case 3: 
+                                       ram_on = ((value & 0x0f) == 0x0a) ? 1 : 0; 
+                                        break; 
+                                     }*/
+                        break;
+                    case 0x2000:
+                    case 0x3000: // rom bank select
+                        switch (val)
+                        {
+                            case 1:
+                            case 2:
+                            case 3:
+                                var val1 = val & 0x1f;
+                                val1 = (byte)(val1 > 0 ? val : 1);
+                                rom_bank_no = (byte)((rom_bank_no & 0x60) + val1);
                                 rom_offs = (uint)(rom_bank_no) * 0x00004000;
-                            } // rom mode
-                            break;
-                    }
-                    break;
-                case 0x6000:
-                case 0x7000: // mode switch
-                    switch (val) {
-                                   case 2:
-                                   case 3: mbc_mode = (byte)(val & 1); break; }
-                    break;
+                                break;
+                        }
+                        break;
+                    case 0x4000:
+                    case 0x5000: // ram select
+                        switch (val)
+                        {
+                            case 1:
+                            case 2:
+                            case 3:
+                                if (mbc_mode != 0) { ram_bank_no = (byte)(val & 3); ram_offs = (ushort)(ram_bank_no * 0x2000); } // ram mode
+                                else
+                                {
+                                    rom_bank_no = (byte)(rom_bank_no & 0x1f + ((val & 3) << 5));
+                                    rom_offs = (uint)(rom_bank_no) * 0x00004000;
+                                } // rom mode
+                                break;
+                        }
+                        break;
+                    case 0x6000:
+                    case 0x7000: // mode switch
+                        switch (val)
+                        {
+                            case 2:
+                            case 3: mbc_mode = (byte)(val & 1); break;
+                        }
+                        break;
+                }
             }
-
+            if (address < 0x8000)
+                return;
             Memory[address] = value;
             if(address == 0xff46) //OAM
                 OAM_RAM(value);
@@ -351,7 +357,6 @@ namespace GbTry.Machine
 
             }
             if (Running) {
-                Interrupts();
                 if (!Halt)
                 {
                     Cycle = 0;
@@ -363,8 +368,9 @@ namespace GbTry.Machine
                         OAMEnable = false;
                     }
                 }
-                ppu.Render();
                 timer_step();
+                ppu.Render();
+                Interrupts();
             }
         }
         public void SetBootImage(bool enableboot)
@@ -412,7 +418,7 @@ namespace GbTry.Machine
                  var val = GetValueFromMemory(REG_TIM_DIV);
                  val++;
                  SetValueIntoMemory(REG_TIM_DIV,val);
-                 timer_internal_div = 0;
+                 timer_internal_div-= 256;
              }
 
              ushort _tt = 256; // ticks threshold
@@ -426,10 +432,10 @@ namespace GbTry.Machine
                      case 2: _tt = 64; break; // 64k
                      case 3: _tt = 256; break; // 16k
                  }
-                if (Cycle == 0)
+                 if (Cycle == 0)
                     Cycle += 4;
 
-                timer_internal_cnt = timer_internal_cnt + Cycle;
+                 timer_internal_cnt = timer_internal_cnt + Cycle;
                  while (timer_internal_cnt >= _tt)
                  {
                      var val = GetValueFromMemory(REG_TIM_TIMA);
@@ -468,7 +474,7 @@ namespace GbTry.Machine
 
 
             var value = GetValueFromMemory(INTF);
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 5; i++)
             {
                 byte trig = (byte)(GetValueFromMemory(INTF) & GetValueFromMemory(INTE));
                 if (trig != 0)
@@ -495,6 +501,13 @@ namespace GbTry.Machine
                         bIRQ = false;
                         SetValueIntoMemory(INTF, (byte)(value & 0xFB));
                         Lr35902.O_RST(0x50, "RST");
+                    }
+                    else 
+                    if ((trig & 0x8) == 0x08)
+                    { // serial
+                        bIRQ = false;
+                        SetValueIntoMemory(INTF, (byte)(value & 0xF7));
+                        Lr35902.O_RST(0x58, "RST");
                     }
                     else
                     if ((trig & 0x10) == 0x10)

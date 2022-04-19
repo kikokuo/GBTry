@@ -390,6 +390,13 @@ namespace GbTry.Machine
                     if (gbCPU.debugflag)
                         opname += "50H";
                     break;
+                case 0x58:
+                    gbCPU.PUSH(gbCPU.PC.word);
+                    gbCPU.PC.word = 0x58;
+                    gbCPU.IncCycle(4);
+                    if (gbCPU.debugflag)
+                        opname += "58H";
+                    break;
                 case 0x60:
                     gbCPU.PUSH(gbCPU.PC.word);
                     gbCPU.PC.word = 0x60;
