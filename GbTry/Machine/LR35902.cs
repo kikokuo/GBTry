@@ -1147,7 +1147,6 @@ namespace GbTry.Machine
                         var Carry = (byte)((gbCPU.AF.lowbyte >> 0x07) & 0x01);
                         gbCPU.AF.lowbyte = (byte)(Carry | (gbCPU.AF.lowbyte << 0x01));
                         gbCPU.SetFlagC(Carry == 0x01);
-                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                         break;
                     }
                 case 0x17:
@@ -1155,10 +1154,10 @@ namespace GbTry.Machine
                         var Carry = gbCPU.GetFlagC();
                         gbCPU.SetFlagC((byte)((gbCPU.AF.lowbyte >> 0x07) & 0x01) == 0x01); 
                         gbCPU.AF.lowbyte = (byte)(Carry | (gbCPU.AF.lowbyte << 0x01));
-                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                         break;
                     }
             }
+            gbCPU.SetFlagZ(false);
             gbCPU.SetFlagH(false);
             gbCPU.SetFlagN(false);
             gbCPU.IncCycle(4);
@@ -1174,7 +1173,6 @@ namespace GbTry.Machine
                         var Carry = (byte)(gbCPU.AF.lowbyte & 0x01);
                         gbCPU.AF.lowbyte = (byte)(Carry << 0x07 | (gbCPU.AF.lowbyte >> 0x01));
                         gbCPU.SetFlagC(Carry == 0x01);
-                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                     }
                     break;
                 case 0x1f:
@@ -1182,10 +1180,10 @@ namespace GbTry.Machine
                         var Carry = gbCPU.GetFlagC();
                         gbCPU.SetFlagC((byte)(gbCPU.AF.lowbyte & 0x01) == 0x01); 
                         gbCPU.AF.lowbyte = (byte)(Carry << 0x07 | (gbCPU.AF.lowbyte >> 0x01)); 
-                        gbCPU.SetFlagZ(gbCPU.AF.lowbyte == 0);
                     }
                     break;
             }
+            gbCPU.SetFlagZ(false);
             gbCPU.SetFlagH(false);
             gbCPU.SetFlagN(false);
             gbCPU.IncCycle(4);

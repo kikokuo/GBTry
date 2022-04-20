@@ -336,7 +336,11 @@ namespace GbTry.Machine
                       if (address < 0xff00) oam[address & 0xff] = value;
                                     else
                     {
-                        hram[address & 0xff] = value;
+
+                        if (address == 0xff04)
+                            hram[address & 0xff] = 0;
+                        else
+                            hram[address & 0xff] = value;
                         if (address == 0xff46) { OAM_RAM(value); }
                     }
                     break;
