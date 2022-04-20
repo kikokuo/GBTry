@@ -57,6 +57,8 @@ namespace GbTry.Machine
         private ushort REG_TIM_TIMA = 0xFF05;
         private ushort REG_TIM_TMA = 0xFF06;
         private ushort REG_TIM_TAC = 0xFF07;
+        // MBC type
+        private ushort REG_MBC = 0x0147;
         private bool EnableBoot;
         private int timer_internal_div = 0;
         private int timer_internal_cnt = 0;
@@ -66,8 +68,15 @@ namespace GbTry.Machine
         private byte rom_bank_no = 0;
         private ushort ram_offs = 0x0000;
         private uint rom_offs = 0x4000;
+        private byte mbc = 0;
 
         public byte[] Memory = new byte[1024*1024];
+        public byte[] ram = new byte[0x2000];
+        public byte[] rom = new byte[0x100];
+        public byte[] vram = new byte[0x2000];
+        public byte[] oam = new byte[0x100];
+        public byte[] hram = new byte[0x100];
+        public byte[] eram = new byte[0x10000];
         public JoyPad keys = new JoyPad();
         // 預設按鍵對映
         public Dictionary<Key, int> button_key_map = new Dictionary<Key, int>();
@@ -230,75 +239,111 @@ namespace GbTry.Machine
         {
             switch (address & 0xf000)
             {
+                case 0x0000:
+                case 0x1000:
+                case 0x2000:
+                case 0x3000:
+                    return Memory[address];
                 case 0x4000:
                 case 0x5000:
                 case 0x6000:
                 case 0x7000: // selectable ROM bank 1 : 0x4000 - 0x7fff
                     return Memory[(uint)(address & 0x3fff) + rom_offs];
+                case 0x8000:
+                case 0x9000: // GPU mem
+                    return vram[address & 0x1fff];
+                case 0xa000:
+                case 0xb000: // external RAM
+                    return eram[ram_offs + (address & 0x1fff)];
+                case 0xc000:
+                case 0xd000:
+                case 0xe000:
+                case 0xf000: // wRAM
+                    if (address < 0xfe00) return ram[address & 0x1fff];
+                    else if (address < 0xff00) return oam[address & 0xff];
+                    else return hram[address & 0xff];
             }
-            return Memory[address];
+            return 0;
         }
 
         public void SetValueIntoMemory(ushort address, byte value)
         {
-            var val = Memory[0x0147];
-            if (val != 0)
+            
+            switch (address & 0xf000)
             {
-                switch (address & 0xf000)
-                {
-                    case 0x0000:
-                    case 0x1000: // external ram switch
-                        /*switch (val) { case 2: 
-                                       case 3: 
-                                       ram_on = ((value & 0x0f) == 0x0a) ? 1 : 0; 
-                                        break; 
-                                     }*/
+                case 0x0000:
+                case 0x1000: // external ram switch
+                    /*switch (val) { case 2: 
+                                    case 3: 
+                                    ram_on = ((value & 0x0f) == 0x0a) ? 1 : 0; 
+                                    break; 
+                                    }*/
+                    break;
+                case 0x2000:
+                case 0x3000: // rom bank select
+                    switch (mbc)
+                    {
+                        case 1:
+                        case 2:
+                        case 3:
+                            var val1 = value & 0x1f;
+                            val1 = (byte)(val1 > 0 ? val1 : 1);
+                            rom_bank_no = (byte)((rom_bank_no & 0x60) + val1);
+                            rom_offs = (uint)(rom_bank_no) * 0x00004000;
+                            break;
+                    }
+                    break;
+                case 0x4000:
+                case 0x5000: // ram select
+                    switch (mbc)
+                    {
+                        case 1:
+                        case 2:
+                        case 3:
+                            if (mbc_mode != 0) { 
+                                ram_bank_no = (byte)(value & 3); 
+                                ram_offs = (ushort)(ram_bank_no * 0x2000); } // ram mode
+                            else
+                            {
+                                rom_bank_no = (byte)(rom_bank_no & 0x1f + ((value & 3) << 5));
+                                rom_offs = (uint)(rom_bank_no ) * 0x00004000;
+                            } // rom mode
+                            break;
+                    }
+                    break;
+                case 0x6000:
+                case 0x7000: // mode switch
+                    switch (mbc)
+                    {
+                        case 2:
+                        case 3: mbc_mode = (byte)(value & 1); break;
+                    }
+                    break;
+                case 0x8000:
+                case 0x9000: // gpu
+                        vram[address & 0x1fff] = value;
+                    break;
+                case 0xa000:
+                case 0xb000: // external ram
+                        eram[ram_offs + (address & 0x1fff)] = value;
                         break;
-                    case 0x2000:
-                    case 0x3000: // rom bank select
-                        switch (val)
-                        {
-                            case 1:
-                            case 2:
-                            case 3:
-                                var val1 = val & 0x1f;
-                                val1 = (byte)(val1 > 0 ? val : 1);
-                                rom_bank_no = (byte)((rom_bank_no & 0x60) + val1);
-                                rom_offs = (uint)(rom_bank_no) * 0x00004000;
-                                break;
-                        }
-                        break;
-                    case 0x4000:
-                    case 0x5000: // ram select
-                        switch (val)
-                        {
-                            case 1:
-                            case 2:
-                            case 3:
-                                if (mbc_mode != 0) { ram_bank_no = (byte)(val & 3); ram_offs = (ushort)(ram_bank_no * 0x2000); } // ram mode
-                                else
-                                {
-                                    rom_bank_no = (byte)(rom_bank_no & 0x1f + ((val & 3) << 5));
-                                    rom_offs = (uint)(rom_bank_no) * 0x00004000;
-                                } // rom mode
-                                break;
-                        }
-                        break;
-                    case 0x6000:
-                    case 0x7000: // mode switch
-                        switch (val)
-                        {
-                            case 2:
-                            case 3: mbc_mode = (byte)(val & 1); break;
-                        }
-                        break;
-                }
+                case 0xc000:
+                case 0xd000:
+                case 0xe000:
+                case 0xf000:
+                      if (address < 0xfe00) ram[address & 0x1fff] = value;
+                                    else
+                      if (address < 0xff00) oam[address & 0xff] = value;
+                                    else
+                    {
+                        hram[address & 0xff] = value;
+                        if (address == 0xff46) { OAM_RAM(value); }
+                    }
+                    break;
             }
-            if (address < 0x8000)
-                return;
-            Memory[address] = value;
-            if(address == 0xff46) //OAM
-                OAM_RAM(value);
+            //if (address < 0x8000)
+             //   return;
+            //Memory[address] = value;
         }
         private void OAM_RAM(byte value)
         { // OAM 'dma' transfer
@@ -401,7 +446,10 @@ namespace GbTry.Machine
             SetValueIntoMemory(0xFF0F, 0xE1); // lcdc register
             SetValueIntoMemory(0xFF47, 0xfc); 
             SetValueIntoMemory(0xFF48, 0xff);
-            SetValueIntoMemory(0xFF49, 0xff);                
+            SetValueIntoMemory(0xFF49, 0xff);
+            SetValueIntoMemory(REG_TIM_TMA, 0);
+            SetValueIntoMemory(REG_TIM_TAC, 0);
+            SetValueIntoMemory(REG_TIM_TIMA, 0);
             Halt = false;
             Running = true;
             bIRQ = true;
@@ -409,6 +457,7 @@ namespace GbTry.Machine
             timer_internal_div = 0;
             timer_internal_cnt = 0;
             ppu.init(ref g_data);
+            mbc = Memory[REG_MBC];
         }
         private  void timer_step()
         {

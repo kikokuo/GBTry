@@ -257,7 +257,7 @@ namespace GbTry.Machine
                     uint screen_off = (uint)(GetValue(LY)*160  + x);
                     if (screen_off < 144 * 160 )
                     {
-                        data[screen_off] = (uint)(r << 16 | g << 8 | b);
+                        data[screen_off] = (uint)(r << 24 | g << 16 | b << 8 |0x00);
                     }
                 }
             }
@@ -272,7 +272,6 @@ namespace GbTry.Machine
             if (gpu_sprite_on == 0x01)
             {
                 int total = 0;
-                List<int> sprite = new List<int>();
                 for (byte idx = 0; idx < 40; idx++)
                 {
                     byte i = idx;
@@ -320,7 +319,7 @@ namespace GbTry.Machine
                         if (color == 1) { r = 192; g = 192; b = 192; }
                         if (color == 2) { r = 96; g = 96; b = 96; }
                         if (color == 3) { r = 0; g = 0; b = 0; }
-                        data[screen_off+(spritex+x)] = (uint)(r << 16 | g << 8 | b);
+                        data[screen_off+(spritex+x)] = (uint)(r << 24 | g << 16 | b << 8 | 0x00);
                     }
                     if(bDrawSprite)
                         total++;
