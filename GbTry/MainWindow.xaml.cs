@@ -34,6 +34,7 @@ namespace GbTry
             new WriteableBitmap(160, 144, 96, 96, PixelFormats.Bgr32, null);
         private DebugView debugView = new DebugView();
         private Task Rungame;
+        private int speed = 1;
 
         public MainWindow()
         {
@@ -61,10 +62,10 @@ namespace GbTry
         private static extern void CopyMemory(IntPtr destination, IntPtr source, uint length);
         private unsafe void CompositionTarget_Rendering(object sender, EventArgs e)
         {
-             gbCPU.Tick();
+             gbCPU.Tick(speed);
             if (gbCPU.debugflag)
                 debugView.UpdateInfo(gbCPU.commandstring);
-            if (gbCPU.ppu.blink())
+            //if (gbCPU.ppu.blink())
             {
                 backgroundBMP.Lock();
                 Parallel.Invoke(() =>
@@ -89,7 +90,7 @@ namespace GbTry
                 {
                     //this.m_cts.Token.ThrowIfCancellationRequested();
 
-                    gbCPU.Tick();
+                    gbCPU.Tick(speed);
                     if (gbCPU.debugflag)
                         debugView.UpdateInfo(gbCPU.commandstring);
                     if (gbCPU.ppu.blink()) {

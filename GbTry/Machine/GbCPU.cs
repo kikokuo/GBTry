@@ -336,11 +336,7 @@ namespace GbTry.Machine
                       if (address < 0xff00) oam[address & 0xff] = value;
                                     else
                     {
-
-                        if (address == 0xff04)
-                            hram[address & 0xff] = 0;
-                        else
-                            hram[address & 0xff] = value;
+                        hram[address & 0xff] = value;
                         if (address == 0xff46) { OAM_RAM(value); }
                     }
                     break;
@@ -378,7 +374,7 @@ namespace GbTry.Machine
             return val;
         }
 
-        public unsafe void Tick()
+        public unsafe void Tick(int speed)
         {
             if (GoToPC != 0)
             {
@@ -409,12 +405,16 @@ namespace GbTry.Machine
                 if (!Halt)
                 {
                     Cycle = 0;
-                    byte opcode = fetch();
-                    Lr35902.ExecuteOP(opcode);
-                    if (OAMEnable)
+                    while (speed != 0)
                     {
-                        Cycle += 671;
-                        OAMEnable = false;
+                        byte opcode = fetch();
+                        Lr35902.ExecuteOP(opcode);
+                        if (OAMEnable)
+                        {
+                            Cycle += 671;
+                            OAMEnable = false;
+                        }
+                        speed--;
                     }
                 }
                 timer_step();
