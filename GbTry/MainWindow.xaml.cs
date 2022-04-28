@@ -35,6 +35,8 @@ namespace GbTry
         private DebugView debugView = new DebugView();
         private Task Rungame;
         private int speed = 1;
+        // 預設按鍵對映
+        public Dictionary<Key, int> button_key_map = new Dictionary<Key, int>();
 
         public MainWindow()
         {
@@ -42,17 +44,33 @@ namespace GbTry
             render.Source = backgroundBMP;
             RenderOptions.SetBitmapScalingMode(render, BitmapScalingMode.NearestNeighbor);
             GameArea.Children.Add(render);
+            button_key_map.Add(Key.Z, 0x04); // a
+            button_key_map.Add(Key.X, 0x08); // b
+            button_key_map.Add(Key.Space, 0x01); // select
+            button_key_map.Add(Key.Enter, 0x02); // start
+            button_key_map.Add(Key.Up, 0x80); //up
+            button_key_map.Add(Key.Down, 0x40); // down
+            button_key_map.Add(Key.Left, 0x10); // left
+            button_key_map.Add(Key.Right, 0x20); // right
             gbCPU = new GbCPU();
             gbCPU.Init();
             debugView.GetGbCPU(this.gbCPU);
         }
         private void Window_KeyUp(object sender, KeyEventArgs e)
         {
-            gbCPU.User_Input(e.Key, 0);
+            int index;
+            if (button_key_map.TryGetValue(e.Key, out index))
+            {
+                gbCPU.User_Input(index, 0);
+            }
         }
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
-            gbCPU.User_Input(e.Key, 1);
+            int index;
+            if (button_key_map.TryGetValue(e.Key, out index))
+            {
+                gbCPU.User_Input(index, 1);
+            }
         }
         private void Window_Closing(object sender, CancelEventArgs e)
         {

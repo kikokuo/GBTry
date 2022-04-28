@@ -78,77 +78,65 @@ namespace GbTry.Machine
         public byte[] hram = new byte[0x100];
         public byte[] eram = new byte[0x10000];
         public JoyPad keys = new JoyPad();
-        // 預設按鍵對映
-        public Dictionary<Key, int> button_key_map = new Dictionary<Key, int>();
+
         public void Init()
         {
             Lr35902.GetGbCPU(this);
             ppu.GetGbCPU(this);
-            button_key_map.Add(Key.Z, 0x04); // a
-            button_key_map.Add(Key.X, 0x08); // b
-            button_key_map.Add(Key.Space, 0x01); // select
-            button_key_map.Add(Key.Enter, 0x02); // start
-            button_key_map.Add(Key.Up, 0x80); //up
-            button_key_map.Add(Key.Down, 0x40); // down
-            button_key_map.Add(Key.Left, 0x10); // left
-            button_key_map.Add(Key.Right, 0x20); // right
+
         }
-        public void User_Input(Key kevvaule, byte data)
+        public void User_Input(int kevvaule, byte data)
         {
-            int index;
-            if (button_key_map.TryGetValue(kevvaule, out index))
+            switch(kevvaule)
             {
-                switch(index)
-                {
-                    case 0x01:
-                        if(data == 1)
-                            keys.select = 0x01;
-                        else
-                            keys.select = 0x00;
-                        break;
-                    case 0x02:
-                        if (data == 1)
-                            keys.start = 0x01;
-                        else
-                            keys.start = 0x00;
-                        break;
-                    case 0x04:
-                        if (data == 1)
-                            keys.a = 0x01;
-                        else
-                            keys.a = 0x00;
-                        break;
-                    case 0x08:
-                        if (data == 1)
-                            keys.b = 0x01;
-                        else
-                            keys.b = 0x00;
-                        break;
-                    case 0x10:
-                        if (data == 1)
-                            keys.left = 0x01;
-                        else
-                            keys.left = 0x00;
-                        break;
-                    case 0x20:
-                        if (data == 1)
-                            keys.right = 0x01;
-                        else
-                            keys.right = 0x00;
-                        break;
-                    case 0x40:
-                        if (data == 1)
-                            keys.down = 0x01;
-                        else
-                            keys.down = 0x00;
-                        break;
-                    case 0x80:
-                        if (data == 1)
-                            keys.up = 0x01;
-                        else
-                            keys.up = 0x00;
-                        break;
-                }
+                case 0x01:
+                    if(data == 1)
+                        keys.select = 0x01;
+                    else
+                        keys.select = 0x00;
+                    break;
+                case 0x02:
+                    if (data == 1)
+                        keys.start = 0x01;
+                    else
+                        keys.start = 0x00;
+                    break;
+                case 0x04:
+                    if (data == 1)
+                        keys.a = 0x01;
+                    else
+                        keys.a = 0x00;
+                    break;
+                case 0x08:
+                    if (data == 1)
+                        keys.b = 0x01;
+                    else
+                        keys.b = 0x00;
+                    break;
+                case 0x10:
+                    if (data == 1)
+                        keys.left = 0x01;
+                    else
+                        keys.left = 0x00;
+                    break;
+                case 0x20:
+                    if (data == 1)
+                        keys.right = 0x01;
+                    else
+                        keys.right = 0x00;
+                    break;
+                case 0x40:
+                    if (data == 1)
+                        keys.down = 0x01;
+                    else
+                        keys.down = 0x00;
+                    break;
+                case 0x80:
+                    if (data == 1)
+                        keys.up = 0x01;
+                    else
+                        keys.up = 0x00;
+                    break;
             }
         }
 
