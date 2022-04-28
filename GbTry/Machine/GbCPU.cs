@@ -527,9 +527,10 @@ namespace GbTry.Machine
 
 
             var value = GetValueFromMemory(INTF);
+            var inte = GetValueFromMemory(INTE);
             for (int i = 0; i < 5; i++)
             {
-                byte trig = (byte)(GetValueFromMemory(INTF) & GetValueFromMemory(INTE));
+                byte trig = (byte)(value & inte);
                 if (trig != 0)
                 {
                     Halt = false;

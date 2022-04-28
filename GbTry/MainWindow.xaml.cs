@@ -104,7 +104,7 @@ namespace GbTry
                             }
                             backgroundBMP.AddDirtyRect(new Int32Rect(0, 0, backgroundBMP.PixelWidth, backgroundBMP.PixelHeight));
                             backgroundBMP.Unlock();
-                        }, System.Windows.Threading.DispatcherPriority.Render);
+                        }, System.Windows.Threading.DispatcherPriority.Normal);
                     }
 
                     _ = SpinWait.SpinUntil(() => !gbCPU.stop, 1);

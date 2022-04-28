@@ -25,7 +25,7 @@ namespace GbTry.Machine
         //public byte [,] Pix= new byte[2,69120]; // screen
         private bool Blink = false;
         private UInt32[] data = null;
-
+        private UInt32[] Color = new UInt32[] { 0xffffff00, 0xc0c0c000, 0x60606000, 0 };
         public void init(ref UInt32[] g_data)
         {
             Blink = false;
@@ -211,10 +211,14 @@ namespace GbTry.Machine
                 byte gpu_tilemap = (byte)((Lcdc >> 4) & 0x1);//8800-97ff, 8000-8fff
                 byte gpu_drawbg = (byte)((Lcdc >> 0) & 0x1);//off,on
                 ushort tilebase = (ushort)((gpu_tilemap == 0x01) ? 0x8000 : 0x8800);
+                byte Scx = GetValue(SCX);
+                byte WinX = GetValue(WINX);
+                uint Ly_pos = (uint)(GetValue(LY) * 160);
+                byte Bgrdpal = GetValue(BGRDPAL);
                 for (byte x = 0; x < 160; x++)
                 {
-                    uint bgx = (uint)(GetValue(SCX) + x);
-                    int winx = -(GetValue(WINX) - 7) + x;
+                    uint bgx = (uint)(Scx + x);
+                    int winx = -(WinX - 7) + x;
                     if (winx >= 0 && winy >= 0)
                     { // draw window
                         byte gpu_win_map = (byte)((Lcdc >> 6) & 0x1);//9800-9bff, 9c00-9fff
@@ -227,37 +231,27 @@ namespace GbTry.Machine
                         tiley = bgtiley; tilex = (ushort)((bgx >> 3) & 31); pixely = (ushort)(bgy&0x07); pixelx = (byte)(bgx & 0x7);
                     }
 
-                    ushort value = (ushort)(tilemapbase + tiley * 32 + tilex);
-                    byte _tilenr = gbCPU.GetValueFromMemory(value);
-                    ushort tilenr, tileaddress;
+                    byte _tilenr = gbCPU.GetValueFromMemory((ushort)(tilemapbase + tiley * 32 + tilex));
+                    ushort tilenr;
                     if (tilebase == 0x8800)
                     {
-                        sbyte nr_s = (sbyte)_tilenr; 
-                        short nr_s16 = (short)(nr_s + 128); 
+                        sbyte nr_s = (sbyte)_tilenr;
+                        short nr_s16 = (short)(nr_s + 128);
                         tilenr = (ushort)nr_s16;
                     }
                     else { tilenr = (ushort)_tilenr; }
-                    tileaddress = (ushort)(tilenr * 16 + tilebase);
+                    ushort tileaddress = (ushort)(tilenr * 16 + tilebase);
 
-                    ushort a0 = (ushort)(tileaddress + pixely * 2);
-                    byte data0 = gbCPU.GetValueFromMemory(a0);
-                    byte data1 = gbCPU.GetValueFromMemory((ushort)(a0+1));
-                    byte color0_idx = (byte)((data0 >> (7 - pixelx)) & 0x1);
-                    byte color1_idx = (byte)((data1 >> (7 - pixelx)) & 0x1);
-                    byte color_idx = (byte)(color0_idx|color1_idx* 2);
-                    byte r = 0, g = 0, b = 0;
-                    var cor_reg = GetValue(BGRDPAL);
-                    byte color = (byte)((cor_reg >> (color_idx * 2)) & 0x3);
+                    byte data0 = gbCPU.GetValueFromMemory((ushort)(tileaddress + pixely * 2));
+                    byte data1 = gbCPU.GetValueFromMemory((ushort)((tileaddress + pixely * 2) + 1));
+                    byte color_idx = (byte)((byte)((data0 >> (7 - pixelx)) & 0x1) | (byte)(((data1 >> (7 - pixelx)) & 0x1) * 2));
+                    byte color = (byte)((Bgrdpal >> (color_idx * 2)) & 0x3);
                     BGprio[x] = color_idx;
-                    if (color == 0) { r = 255; g = 255; b = 255; }
-                    if (color == 1) { r = 192; g = 192; b = 192; }
-                    if (color == 2) { r = 96; g = 96; b = 96; }
-                    if (color == 3) { r = 0; g = 0; b = 0; }
 
-                    uint screen_off = (uint)(GetValue(LY)*160  + x);
+                    uint screen_off = (uint)(Ly_pos + x);
                     if (screen_off < 144 * 160 )
                     {
-                        data[screen_off] = (uint)(r << 24 | g << 16 | b << 8 |0x00);
+                        data[screen_off] = Color[color];
                     }
                 }
             }
@@ -267,14 +261,14 @@ namespace GbTry.Machine
         void PPU_draw_sprites()
         {
             var Lcdc = GetValue(LCDC);
+            byte line = GetValue(LY);
             byte gpu_sprite_on = (byte)((Lcdc >> 1) & 0x1);
             byte gpu_sprite_size = (byte)(((Lcdc >> 2) & 0x1) == 0x01 ? 16 : 8);//8x8, 8x16
             if (gpu_sprite_on == 0x01)
             {
                 int total = 0;
-                for (byte idx = 0; idx < 40; idx++)
+                for (byte i = 0; i < 40; i++)
                 {
-                    byte i = idx;
                     ushort spriteaddr = (ushort)(0xfe00 + i * 4);
                     int spritey = gbCPU.GetValueFromMemory((ushort)(spriteaddr + 0)) - 16;
                     int spritex = gbCPU.GetValueFromMemory((ushort)(spriteaddr + 1)) - 8;
@@ -288,7 +282,7 @@ namespace GbTry.Machine
                     //byte c_palnr = (byte)(flags & 0x7);
                     //u8 c_vram1 = (flags >> 3) & 0x1;
 
-                    byte line = GetValue(LY);
+                    //byte line = GetValue(LY);
                     if (line < spritey || line >= (spritey + gpu_sprite_size)) { continue; }
                     if (spritex < -7 || spritex >= 160) { continue; }
                    
@@ -313,13 +307,8 @@ namespace GbTry.Machine
                         byte color_idx = (byte)(color0_idx|color1_idx * 2);
                         if (color_idx == 0) continue;
                         bDrawSprite = true;
-                        byte r = 0 , g= 0, b  = 0;
                         byte color = (byte)((pal >> (color_idx * 2)) & 0x3);
-                        if (color == 0) { r = 255; g = 255; b = 255; }
-                        if (color == 1) { r = 192; g = 192; b = 192; }
-                        if (color == 2) { r = 96; g = 96; b = 96; }
-                        if (color == 3) { r = 0; g = 0; b = 0; }
-                        data[screen_off+(spritex+x)] = (uint)(r << 24 | g << 16 | b << 8 | 0x00);
+                        data[screen_off+(spritex+x)] = Color[color];
                     }
                     if(bDrawSprite)
                         total++;
