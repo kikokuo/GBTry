@@ -225,113 +225,81 @@ namespace GbTry.Machine
 
         public byte GetValueFromMemory(ushort address)
         {
-            switch (address & 0xf000)
+            if (address < 0x4000)
+                return Memory[address];
+            else if (address < 0x8000)
+                return Memory[(uint)(address & 0x3fff) + rom_offs];
+            else if (address < 0xa000)
+                return vram[address & 0x1fff];
+            else if (address < 0xc000)
+                return eram[ram_offs + (address & 0x1fff)];
+            else
             {
-                case 0x0000:
-                case 0x1000:
-                case 0x2000:
-                case 0x3000:
-                    return Memory[address];
-                case 0x4000:
-                case 0x5000:
-                case 0x6000:
-                case 0x7000: // selectable ROM bank 1 : 0x4000 - 0x7fff
-                    return Memory[(uint)(address & 0x3fff) + rom_offs];
-                case 0x8000:
-                case 0x9000: // GPU mem
-                    return vram[address & 0x1fff];
-                case 0xa000:
-                case 0xb000: // external RAM
-                    return eram[ram_offs + (address & 0x1fff)];
-                case 0xc000:
-                case 0xd000:
-                case 0xe000:
-                case 0xf000: // wRAM
-                    if (address < 0xfe00) return ram[address & 0x1fff];
-                    else if (address < 0xff00) return oam[address & 0xff];
-                    else return hram[address & 0xff];
+                if (address < 0xfe00) return ram[address & 0x1fff];
+                else if (address < 0xff00) return oam[address & 0xff];
+                else return hram[address & 0xff];
             }
-            return 0;
         }
 
         public void SetValueIntoMemory(ushort address, byte value)
         {
-            
-            switch (address & 0xf000)
+            if (address < 0x2000) // external ram switch
             {
-                case 0x0000:
-                case 0x1000: // external ram switch
-                    /*switch (val) { case 2: 
-                                    case 3: 
-                                    ram_on = ((value & 0x0f) == 0x0a) ? 1 : 0; 
-                                    break; 
-                                    }*/
-                    break;
-                case 0x2000:
-                case 0x3000: // rom bank select
-                    switch (mbc)
-                    {
-                        case 1:
-                        case 2:
-                        case 3:
-                            var val1 = value & 0x1f;
-                            val1 = (byte)(val1 > 0 ? val1 : 1);
-                            rom_bank_no = (byte)((rom_bank_no & 0x60) + val1);
-                            rom_offs = (uint)(rom_bank_no) * 0x00004000;
-                            break;
-                    }
-                    break;
-                case 0x4000:
-                case 0x5000: // ram select
-                    switch (mbc)
-                    {
-                        case 1:
-                        case 2:
-                        case 3:
-                            if (mbc_mode != 0) { 
-                                ram_bank_no = (byte)(value & 3); 
-                                ram_offs = (ushort)(ram_bank_no * 0x2000); } // ram mode
-                            else
-                            {
-                                rom_bank_no = (byte)(rom_bank_no & 0x1f + ((value & 3) << 5));
-                                rom_offs = (uint)(rom_bank_no ) * 0x00004000;
-                            } // rom mode
-                            break;
-                    }
-                    break;
-                case 0x6000:
-                case 0x7000: // mode switch
-                    switch (mbc)
-                    {
-                        case 2:
-                        case 3: mbc_mode = (byte)(value & 1); break;
-                    }
-                    break;
-                case 0x8000:
-                case 0x9000: // gpu
-                        vram[address & 0x1fff] = value;
-                    break;
-                case 0xa000:
-                case 0xb000: // external ram
-                        eram[ram_offs + (address & 0x1fff)] = value;
+                /*switch (val)
+                {
+                    case 2:
+                    case 3:
+                        ram_on = ((value & 0x0f) == 0x0a) ? 1 : 0;
                         break;
-                case 0xc000:
-                case 0xd000:
-                case 0xe000:
-                case 0xf000:
-                      if (address < 0xfe00) ram[address & 0x1fff] = value;
-                                    else
-                      if (address < 0xff00) oam[address & 0xff] = value;
-                                    else
-                    {
-                        hram[address & 0xff] = value;
-                        if (address == 0xff46) { OAM_RAM(value); }
-                    }
-                    break;
+                }*/
+                return;
             }
-            //if (address < 0x8000)
-             //   return;
-            //Memory[address] = value;
+            else if (address < 0x4000) // rom bank select
+            {
+                if (mbc >= 1 && mbc <= 3)
+                {
+                    var val1 = value & 0x1f;
+                    val1 = (byte)(val1 > 0 ? val1 : 1);
+                    rom_bank_no = (byte)((rom_bank_no & 0x60) + val1);
+                    rom_offs = (uint)(rom_bank_no) * 0x00004000;
+                }
+            }
+            else if (address < 0x6000)// ram select
+            {
+                if (mbc >= 1 && mbc <= 3) 
+                { 
+                    if (mbc_mode != 0)
+                    {
+                        ram_bank_no = (byte)(value & 3);
+                        ram_offs = (ushort)(ram_bank_no * 0x2000);
+                    } // ram mode
+                    else
+                    {
+                        rom_bank_no = (byte)(rom_bank_no & 0x1f + ((value & 3) << 5));
+                        rom_offs = (uint)(rom_bank_no) * 0x00004000;
+                    } // rom mode
+                }
+            }
+            else if (address < 0x8000) //mode switch
+            {  
+                if (mbc >= 2 && mbc <= 3)
+                 mbc_mode = (byte)(value & 1);
+            }
+            else if (address < 0xa000) // gpu
+                vram[address & 0x1fff] = value;
+            else if (address < 0xc000) // external ram
+                eram[ram_offs + (address & 0x1fff)] = value;
+            else
+            {
+                if (address < 0xfe00) ram[address & 0x1fff] = value;
+                else
+                if (address < 0xff00) oam[address & 0xff] = value;
+                else
+                {
+                    hram[address & 0xff] = value;
+                    if (address == 0xff46) { OAM_RAM(value); }
+                }
+            }
         }
         private void OAM_RAM(byte value)
         { // OAM 'dma' transfer
@@ -390,6 +358,7 @@ namespace GbTry.Machine
 
             }
             if (Running) {
+                CheckInput();
                 if (!Halt)
                 {
                     Cycle = 0;
@@ -404,8 +373,8 @@ namespace GbTry.Machine
                         }
                         speed--;
                     }
-                }
-                timer_step();
+                } 
+                Timer_step();
                 ppu.Render();
                 Interrupts();
             }
@@ -451,15 +420,13 @@ namespace GbTry.Machine
             ppu.init(ref g_data);
             mbc = Memory[REG_MBC];
         }
-        private  void timer_step()
+        private  void Timer_step()
         {
              timer_internal_div +=  Cycle;
              while (timer_internal_div >= 256)
              {
-                 var val = GetValueFromMemory(REG_TIM_DIV);
-                 val++;
-                 SetValueIntoMemory(REG_TIM_DIV,val);
-                 timer_internal_div-= 256;
+                 SetValueIntoMemory(REG_TIM_DIV, (byte)(GetValueFromMemory(REG_TIM_DIV) + 1));
+                 timer_internal_div -= 256;
              }
 
              ushort _tt = 256; // ticks threshold
@@ -476,31 +443,27 @@ namespace GbTry.Machine
                  if (Cycle == 0)
                     Cycle += 4;
 
-                 timer_internal_cnt = timer_internal_cnt + Cycle;
+                 timer_internal_cnt += Cycle;
+                 var val = GetValueFromMemory(REG_TIM_TIMA);
                  while (timer_internal_cnt >= _tt)
                  {
-                     var val = GetValueFromMemory(REG_TIM_TIMA);
                      val++;
-                     
                      // actual step
                      if (val == 0)
                      {
-                         var vma = GetValueFromMemory(REG_TIM_TMA);
-                         SetValueIntoMemory(REG_TIM_TIMA, vma);
-                         var intf = GetValueFromMemory(INTF);
-                         intf |= 0x4;
-                         SetValueIntoMemory(INTF, intf);
-                    }
-                    else
-                    {
+                        SetValueIntoMemory(REG_TIM_TIMA, GetValueFromMemory(REG_TIM_TMA));
+                        SetValueIntoMemory(INTF, (byte)(GetValueFromMemory(INTF) | 0x4));
+                     }
+                     else
+                     {
                         SetValueIntoMemory(REG_TIM_TIMA, val);
-                    }
+                     }
                      timer_internal_cnt -= _tt;
                  }
              }
         }
 
-        private void Interrupts()
+        private void CheckInput()
         {
             byte joydata = (byte)((~GetValueFromMemory(IO_P1)) & 0xf0);
             byte val = 0;
@@ -508,15 +471,16 @@ namespace GbTry.Machine
             if (((joydata >> 4) & 0x1) !=0) val = (byte)((0x10) | (keys.right << 0) | (keys.left << 1) | (keys.up << 2) | (keys.down << 3));
             if (val != 0)
             {   
-                var value1 = GetValueFromMemory(INTF); 
-                SetValueIntoMemory(INTF, (byte)(value1 | 0x10));
+                SetValueIntoMemory(INTF, (byte)(GetValueFromMemory(INTF) | 0x10));
             }
             SetValueIntoMemory(IO_P1, (byte)~(val));
+        }
 
-
+        private void Interrupts()
+        {
             var value = GetValueFromMemory(INTF);
             var inte = GetValueFromMemory(INTE);
-            for (int i = 0; i < 5; i++)
+            //for (int i = 0; i < 5; i++)
             {
                 byte trig = (byte)(value & inte);
                 if (trig != 0)

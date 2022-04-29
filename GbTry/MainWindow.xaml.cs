@@ -35,6 +35,11 @@ namespace GbTry
         private DebugView debugView = new DebugView();
         private Task Rungame;
         private int speed = 1;
+        public float updateInterval = 1.0f;  //每幾秒算一次
+        private DateTime lastInterval;
+        private int frames = 0;
+        private int fps;
+        private TextBlock textBlock = new TextBlock();
         // 預設按鍵對映
         public Dictionary<Key, int> button_key_map = new Dictionary<Key, int>();
 
@@ -44,6 +49,13 @@ namespace GbTry
             render.Source = backgroundBMP;
             RenderOptions.SetBitmapScalingMode(render, BitmapScalingMode.NearestNeighbor);
             GameArea.Children.Add(render);
+            textBlock.FontSize = 8;
+            textBlock.Foreground = new SolidColorBrush(Color.FromRgb(255, 0, 0));
+            Canvas.SetLeft(textBlock, 0);
+            Canvas.SetTop(textBlock, 10);
+            GameArea.Children.Add(textBlock);
+            lastInterval = DateTime.Now;  //自遊戲開始時間
+            frames = 0;  //初始frames =0
             button_key_map.Add(Key.Z, 0x04); // a
             button_key_map.Add(Key.X, 0x08); // b
             button_key_map.Add(Key.Space, 0x01); // select
@@ -52,6 +64,7 @@ namespace GbTry
             button_key_map.Add(Key.Down, 0x40); // down
             button_key_map.Add(Key.Left, 0x10); // left
             button_key_map.Add(Key.Right, 0x20); // right
+
             gbCPU = new GbCPU();
             gbCPU.Init();
             debugView.GetGbCPU(this.gbCPU);
@@ -98,6 +111,7 @@ namespace GbTry
                 backgroundBMP.Unlock();
             }
         }
+
         private unsafe void UpdateGame()
         {
             Rungame = Task.Run(() => 
@@ -106,8 +120,6 @@ namespace GbTry
                 gbCPU.stop = false;
                 while (isRunning)
                 {
-                    //this.m_cts.Token.ThrowIfCancellationRequested();
-
                     gbCPU.Tick(speed);
                     if (gbCPU.debugflag)
                         debugView.UpdateInfo(gbCPU.commandstring);
@@ -122,10 +134,17 @@ namespace GbTry
                             }
                             backgroundBMP.AddDirtyRect(new Int32Rect(0, 0, backgroundBMP.PixelWidth, backgroundBMP.PixelHeight));
                             backgroundBMP.Unlock();
+                            frames++;
+                            if ((DateTime.Now - lastInterval).TotalSeconds >= updateInterval)  //每1秒更新一次
+                            {
+                                fps = ((int)(frames / (DateTime.Now - lastInterval).TotalSeconds)); //幀數= 每幀/每幀間隔毫秒 
+                                frames = 0;
+                                lastInterval = DateTime.Now;
+                                textBlock.Text = new StringBuilder("FPS:" + fps.ToString()).ToString();
+                            }
                         }, System.Windows.Threading.DispatcherPriority.Normal);
                     }
-
-                    _ = SpinWait.SpinUntil(() => !gbCPU.stop, 1);
+                    //_ = SpinWait.SpinUntil(() => !gbCPU.stop, 1);
                 }
                 isRunning = true;
             });

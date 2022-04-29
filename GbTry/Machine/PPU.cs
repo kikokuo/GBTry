@@ -249,7 +249,7 @@ namespace GbTry.Machine
                     BGprio[x] = color_idx;
 
                     uint screen_off = (uint)(Ly_pos + x);
-                    if (screen_off < 144 * 160 )
+                    if (screen_off < 23904 )
                     {
                         data[screen_off] = Color[color];
                     }
@@ -262,8 +262,10 @@ namespace GbTry.Machine
         {
             var Lcdc = GetValue(LCDC);
             byte line = GetValue(LY);
+            uint screen_off = (uint)(line * 160);
             byte gpu_sprite_on = (byte)((Lcdc >> 1) & 0x1);
             byte gpu_sprite_size = (byte)(((Lcdc >> 2) & 0x1) == 0x01 ? 16 : 8);//8x8, 8x16
+
             if (gpu_sprite_on == 0x01)
             {
                 int total = 0;
@@ -289,12 +291,9 @@ namespace GbTry.Machine
                     if (total >= 10) { continue; }
                     ushort tiley = (ushort)(yflip == 0x01? (gpu_sprite_size - 1 - (line - spritey)) : (line - spritey));
                     ushort tileaddress = (ushort)(0x8000 + tilenum * 16 + tiley * 2);
-                    ushort b0 = tileaddress;
-                    ushort b1 = (ushort)(tileaddress + 1);
-                    byte data0 = gbCPU.GetValueFromMemory(b0);
-                    byte data1 = gbCPU.GetValueFromMemory(b1);
+                    byte data0 = gbCPU.GetValueFromMemory(tileaddress);
+                    byte data1 = gbCPU.GetValueFromMemory((ushort)(tileaddress + 1));
 
-                    uint screen_off = (uint)(line * 160 );
                     bool bDrawSprite = false;
                     for (byte x = 0; x < 8; x++)
                     {
