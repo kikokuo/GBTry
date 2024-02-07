@@ -6,22 +6,26 @@ namespace GbTry.Machine
 {
     public partial class LR35902
     {
-        public class DelegateOP
+        interface IExec
         {
-            public delegate string Operation(byte op,string opname);
-            public Operation m_operation;
+            public string execOpeation();
+        }
+        public class DelegateOP: IExec
+        {
+            public delegate string Delegate(byte op, string name);
+            public event Delegate m_operation;
             private string opname;
             private byte op;
-            public DelegateOP(byte op,string opname,Operation operation)
+            public DelegateOP(byte op, string opname, Delegate func)
             {
                 this.op = op;
                 this.opname = opname;
-                m_operation = operation;
+                m_operation = func;
             }
 
-            public string execOpeation()
+            public string execOpeation() 
             {
-               return m_operation(op,opname);  
+               return m_operation(op, opname);
             }
         }
 

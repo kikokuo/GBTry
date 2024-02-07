@@ -35,7 +35,7 @@ namespace GbTry
         private DebugView debugView = new DebugView();
         private Task Rungame;
         private int speed = 1;
-        public float updateInterval = 1.0f;  //每幾秒算一次
+        private float updateInterval = 0.5f;  //每幾秒算一次
         private DateTime lastInterval;
         private int frames = 0;
         private int fps;
@@ -124,25 +124,34 @@ namespace GbTry
                     if (gbCPU.debugflag)
                         debugView.UpdateInfo(gbCPU.commandstring);
                     if (gbCPU.ppu.blink()) {
-                        GameArea.Dispatcher.Invoke(() =>
+                        IntPtr backprt = new IntPtr(0);
+                        Application.Current.Dispatcher.Invoke(() =>
                         {
                             backgroundBMP.Lock();
+                            backprt = backgroundBMP.BackBuffer;
+                        });
+                        unsafe
+                        {
                             fixed (UInt32* ptr = g_bg_data)
                             {
                                 var p = new IntPtr(ptr);
-                                CopyMemory(backgroundBMP.BackBuffer, new IntPtr(ptr), (uint)160 * 144 * 4);
+                                CopyMemory(backprt, new IntPtr(ptr), (uint)160 * 144 * 4);
                             }
+                        }
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
                             backgroundBMP.AddDirtyRect(new Int32Rect(0, 0, backgroundBMP.PixelWidth, backgroundBMP.PixelHeight));
                             backgroundBMP.Unlock();
                             frames++;
-                            if ((DateTime.Now - lastInterval).TotalSeconds >= updateInterval)  //每1秒更新一次
+                            var internalv = (DateTime.Now - lastInterval).TotalSeconds;
+                            if (internalv >= updateInterval)  //每0.5秒更新一次
                             {
-                                fps = ((int)(frames / (DateTime.Now - lastInterval).TotalSeconds)); //幀數= 每幀/每幀間隔毫秒 
+                                fps = (int)(frames / internalv); //幀數= 每幀/每幀間隔毫秒 
                                 frames = 0;
                                 lastInterval = DateTime.Now;
                                 textBlock.Text = new StringBuilder("FPS:" + fps.ToString()).ToString();
                             }
-                        }, System.Windows.Threading.DispatcherPriority.Normal);
+                        });
                     }
                     //_ = SpinWait.SpinUntil(() => !gbCPU.stop, 1);
                 }
